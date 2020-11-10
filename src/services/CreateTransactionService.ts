@@ -1,8 +1,9 @@
-// import AppError from '../errors/AppError';
-import { getCustomRepository } from 'typeorm';
+import { getCustomRepository, getRepository } from 'typeorm';
+import AppError from '../errors/AppError';
 import TransactionsRepository from '../repositories/TransactionsRepository';
 
 import Transaction from '../models/Transaction';
+import Category from '../models/Category';
 
 interface RequestDTO {
   title: string;
@@ -19,10 +20,29 @@ class CreateTransactionService {
     category,
   }: RequestDTO): Promise<Transaction> {
     const transactionsRepository = getCustomRepository(TransactionsRepository);
+    const categoryRepository = getRepository(Category);
+
+    const { total } = await transactionsRepository.getBalance();
+
+    let categoryExist = await categoryRepository.findOne({
+      where: {
+        title: category,
+      },
+    });
+
+    if (!categoryExist) {
+      categoryExist = categoryRepository.create({
+        title: category,
+      });
+
+      await categoryRepository.save(categoryExist);
+    }
+
     const transaction = transactionsRepository.create({
       title,
       value,
       type,
+      category: categoryExist,
     });
 
     await transactionsRepository.save(transaction);
